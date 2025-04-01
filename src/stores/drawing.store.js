@@ -6,11 +6,13 @@ export const useDrawingStore = defineStore('drawing', {
         points: [],
         currentPoint: null,
         lines: [],
-        polygonPoints: []
+        polygonPoints: [],
+        togglePoints: false
     }),
     actions: {
         startDrawing() {
             this.isDrawing = true;
+            this.togglePoints = true;
             this.points = [];
             this.lines = [];
             this.polygonPoints = [];
@@ -26,14 +28,23 @@ export const useDrawingStore = defineStore('drawing', {
         },
         finalizePolygon() {
             this.polygonPoints = this.points.map(p => ({ x: p.startX, y: p.startY }));
-            this.points = [];
             this.lines = [];
             this.currentPoint = null;
             this.isDrawing = false;
+            this.togglePoints = false;
         },
         finishDrawing() {
             this.isDrawing = false;
             this.currentPoint = null;
+        },
+        showPoints() {
+            this.togglePoints = !this.togglePoints;
+        },
+        updatePoint(index, newPoint) {
+            this.points[index] = newPoint;
+            if (this.polygonPoints.length > 0) {
+                this.polygonPoints[index] = { x: newPoint.startX, y: newPoint.startY };
+            }
         }
     }
 });

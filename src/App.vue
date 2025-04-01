@@ -4,8 +4,6 @@
 </script>
 
 <template>
-  <div>
-    <Toolbar />
-    <SvgCanvas />
-  </div>
+  <Toolbar />
+  <SvgCanvas />
 </template>

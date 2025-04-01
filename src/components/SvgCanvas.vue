@@ -1,43 +1,50 @@
 <template>
-  <svg
-      @click="addPoint"
-      @mousemove="updatePreviewLine"
-      @keydown="handleKeydown"
-      tabindex="0"
-      width="500" height="500" viewBox="0 0 500 500"
-      style="border: 1px solid black; cursor: normal;">
+  <div class="svg-container">
+    <svg
+        ref="svgRef"
+        @click="addPoint"
+        @mousemove="updatePreviewLine"
+        @keydown="handleKeydown"
+        tabindex="0"
+        viewBox="0 0 500 500"
+        preserveAspectRatio="xMidYMid meet"
+        >
 
-    <line
-        v-for="(line, index) in lines"
-        :key="'line-' + index"
-        :x1="line.x1" :y1="line.y1"
-        :x2="line.x2" :y2="line.y2"
-        stroke="black" stroke-width="2" />
+      <line
+          v-for="(line, index) in lines"
+          :key="'line-' + index"
+          :x1="line.x1" :y1="line.y1"
+          :x2="line.x2" :y2="line.y2"
+          stroke="black" stroke-width="2" />
 
-    <line
-        v-if="isDrawing && currentPoint"
-        :x1="currentPoint.startX" :y1="currentPoint.startY"
-        :x2="mouseX" :y2="mouseY"
-        stroke="gray" stroke-dasharray="5,5" stroke-width="2" />
+      <line
+          v-if="isDrawing && currentPoint"
+          :x1="currentPoint.startX" :y1="currentPoint.startY"
+          :x2="mouseX" :y2="mouseY"
+          stroke="gray" stroke-dasharray="5,5" stroke-width="2" />
 
-    <circle
-        v-for="(point, index) in points"
-        :key="'circle-' + index"
-        :cx="point.startX"
-        :cy="point.startY"
-        r="5"
-        fill="red"
-        @click.stop="checkPolygonClosure(index)" />
+      <circle
+          v-for="(point, index) in points"
+          :key="'circle-' + index"
+          :cx="point.startX"
+          :cy="point.startY"
+          :r=" !polygonPoints.length ? 5 : 15 "
+          fill="red"
+          v-if="togglePoints"
+          :class="{ pulse: index === 0 && points.length > 1 && !polygonPoints.length }"
+          @mousedown="startDrag(index, $event)"
+          @click.stop="checkPolygonClosure(index)" />
 
-    <polygon
-        v-if="polygonPoints.length > 0"
-        :points="polygonPoints.map(p => `${p.x},${p.y}`).join(' ')"
-        fill="rgba(0,0,255,0.3)" stroke="blue" stroke-width="2" />
-  </svg>
+      <polygon
+          v-if="polygonPoints.length > 0"
+          :points="polygonPoints.map(p => `${p.x},${p.y}`).join(' ')"
+          fill="rgba(0,0,255,0.3)" stroke="blue" stroke-width="2" />
+    </svg>
+  </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useDrawingStore } from '../stores/drawing.store.js';
 
 const store = useDrawingStore();
@@ -46,6 +53,7 @@ const lines = computed(() => store.lines);
 const isDrawing = computed(() => store.isDrawing);
 const currentPoint = computed(() => store.currentPoint);
 const polygonPoints = computed(() => store.polygonPoints);
+const togglePoints = computed(() => store.togglePoints);
 const mouseX = ref(0);
 const mouseY = ref(0);
 
@@ -65,7 +73,9 @@ const addPoint = (event) => {
 };
 
 const updatePreviewLine = (event) => {
-  if (!store.isDrawing || !currentPoint.value) return;
+  if (!store.isDrawing || !currentPoint.value) {
+    return;
+  }
 
   const rect = event.currentTarget.getBoundingClientRect();
   mouseX.value = event.clientX - rect.left;
@@ -83,4 +93,90 @@ const handleKeydown = (event) => {
     store.finishDrawing();
   }
 };
+
+const svgRef = ref(null);
+
+onMounted(() => {
+  resizeSvg();
+  window.addEventListener('resize', resizeSvg);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', resizeSvg);
+});
+
+const resizeSvg = () => {
+  if (svgRef.value) {
+    const { width, height } = svgRef.value.getBoundingClientRect();
+    svgRef.value.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  }
+};
+
+const draggedPointIndex = ref(null);
+
+const startDrag = (index, event) => {
+  draggedPointIndex.value = index;
+  event.preventDefault();
+};
+
+const movePoint = (event) => {
+  if (draggedPointIndex.value === null) return;
+
+  const rect = svgRef.value.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+
+  store.updatePoint(draggedPointIndex.value, { startX: x, startY: y });
+};
+
+const stopDrag = () => {
+  draggedPointIndex.value = null;
+};
+
+onMounted(() => {
+  window.addEventListener('mousemove', movePoint);
+  window.addEventListener('mouseup', stopDrag);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', movePoint);
+  window.removeEventListener('mouseup', stopDrag);
+});
+
 </script>
+
+<style>
+@keyframes pulse {
+  0% {
+    r: 5;
+    opacity: 1;
+  }
+  50% {
+    r: 10;
+    opacity: 0.5;
+  }
+  100% {
+    r: 5;
+    opacity: 1;
+  }
+}
+
+.pulse {
+  animation: pulse 1s infinite;
+}
+
+.svg-container {
+  width: 100%;
+  height: calc(100vh - 50px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.svg-container svg {
+  width: 100%;
+  height: 100%;
+  border: 1px solid black;
+}
+
+</style>
