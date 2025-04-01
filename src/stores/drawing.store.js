@@ -17,8 +17,21 @@ export const useDrawingStore = defineStore('drawing', {
             this.lines = [];
             this.polygonPoints = [];
         },
-        addPoint(point) {
-            this.points.push(point);
+        addPoint(point, index = null) {
+            if (!index) {
+                this.points.push(point);
+            }
+            else {
+                this.points.splice(index, 0, point);
+            }
+        },
+        addPolygonPoint(point, index = null) {
+            if (!index) {
+                this.polygonPoints.push({ x: point.startX, y: point.startY })
+            }
+            else {
+                this.polygonPoints.splice(index, 0, { x: point.startX, y: point.startY });
+            }
         },
         addLine(line) {
             this.lines.push(line);
